@@ -2,6 +2,7 @@ package http1
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 )
@@ -18,7 +19,16 @@ func ListenAndServe(addr string, handler http.Handler) error {
 	}
 
 	for {
-		panic("ListenAndServe: Not implemented")
+		//panic("ListenAndServe: Not implemented")
+		conn, err := listener.Accept()
+		if err != nil {
+			log.Fatal(err)
+		}
+		go func(c net.Conn) {
+			msg := []byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 12\r\n\r\nHello World\n")
+			c.Write(msg)
+			c.Close()
+		}(conn)
 		/*
 				Functions that might be useful:
 				* listener.Accept()
