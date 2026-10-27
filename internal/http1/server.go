@@ -2,13 +2,21 @@ package http1
 
 import (
 	"bufio"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
 	"log"
+	"math/big"
 	"net"
 	"net/http"
 	"strings"
+	"time"
 )
 
 func ListenAndServe(addr string, handler http.Handler) error {
@@ -34,9 +42,6 @@ func ListenAndServe(addr string, handler http.Handler) error {
 				log.Printf("handleConnection with error: %v", err)
 			}
 		}()
-		if err != nil {
-			return err
-		}
 	}
 }
 
@@ -76,4 +81,66 @@ func HandleConnection(conn net.Conn, mux http.Handler) error {
 			return nil
 		}
 	}
+}
+
+func ListenAndServeTLS(addr string, handler http.Handler) error {
+	cert, err := generateDummyCert()
+	if err != nil {
+		return fmt.Errorf("create cert: %w", err)
+	}
+	config := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+	}
+	tcpListener, err := net.Listen("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("listen: %w", err)
+	}
+	defer tcpListener.Close()
+
+	tlsListener := tls.NewListener(tcpListener, config)
+	defer tlsListener.Close()
+
+	if handler == nil {
+		handler = http.DefaultServeMux
+	}
+
+	for {
+		conn, err := tlsListener.Accept()
+		if err != nil {
+			return err
+		}
+
+		go func(c net.Conn) {
+			err := HandleConnection(c, handler)
+			if err != nil {
+				log.Printf("handleConnection with error: %v", err)
+			}
+		}(conn)
+	}
+}
+
+func generateDummyCert() (tls.Certificate, error) {
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName: "localhost",
+		},
+		NotBefore: time.Now().Add(-1 * time.Hour),
+		NotAfter:  time.Now().Add(24 * time.Hour), // 1 Tag gültig
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
+
+	return tls.X509KeyPair(certPEM, keyPEM)
 }
