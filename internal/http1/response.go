@@ -2,9 +2,11 @@ package http1
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"net"
 	"net/http"
+	"time"
 )
 
 type Response struct {
@@ -13,6 +15,7 @@ type Response struct {
 	headerWritten bool
 	conn          net.Conn
 	bw            *bufio.Writer
+	body          bytes.Buffer
 }
 
 func NewResponse(conn net.Conn) *Response {
@@ -28,12 +31,7 @@ func (r *Response) Write(data []byte) (n int, err error) {
 		r.WriteHeader(http.StatusOK)
 	}
 
-	n, err = r.bw.Write(data)
-	if err != nil {
-		return n, err
-	}
-
-	err = r.bw.Flush()
+	n, err = r.body.Write(data)
 	if err != nil {
 		return n, err
 	}
@@ -49,14 +47,22 @@ func (r *Response) WriteHeader(statusCode int) {
 	}
 	r.headerWritten = true
 	r.statusCode = statusCode
+}
 
-	if r.header.Get("Connection") == "" {
-		r.header.Set("Connection", "close")
+func (r *Response) Flush() {
+	r.header.Set("Content-Length", fmt.Sprint(r.body.Len()))
+	if r.headerWritten == false {
+		r.WriteHeader(http.StatusOK)
 	}
 
-	fmt.Fprintf(r.bw, "HTTP/1.1 %d %s\r\n", statusCode, http.StatusText(statusCode))
+	fmt.Fprintf(r.bw, "HTTP/1.1 %d %s\r\n", r.statusCode, http.StatusText(r.statusCode))
+
+	r.header.Set("Date", time.Now().UTC().Format(http.TimeFormat))
 
 	r.header.Write(r.bw)
 
 	r.bw.WriteString("\r\n")
+
+	r.bw.Write(r.body.Bytes())
+	r.bw.Flush()
 }
