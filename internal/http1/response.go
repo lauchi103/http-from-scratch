@@ -9,16 +9,20 @@ import (
 	"time"
 )
 
+type ResponseWriter interface {
+	Header() http.Header
+	Write([]byte) (int, error)
+	WriteHeader(statusCode int)
+}
+
 type Response struct {
 	header        http.Header
 	statusCode    int
 	headerWritten bool
 	conn          net.Conn
-	bw            ResponseWriter
+	bw            *bufio.Writer
 	body          bytes.Buffer
 }
-
-type ResponseWriter = *bufio.Writer
 
 func NewResponse(conn net.Conn) *Response {
 	return &Response{conn: conn, bw: bufio.NewWriter(conn), header: make(http.Header)}

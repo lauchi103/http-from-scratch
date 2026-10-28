@@ -3,6 +3,7 @@ package http1
 import (
 	"net/http"
 	"sort"
+	"strings"
 )
 
 type Handler interface {
@@ -27,21 +28,29 @@ func NewMux() *Mux {
 }
 
 // matches the router from req to ist handlers and then executes the fitting handlerFunc
-func (*Mux) ServeHTTP(resp *Response, req *http.Request) {
-
+func (mux *Mux) ServeHTTP(resp *Response, req *http.Request) {
+	for _, handlerFunc := range mux.handlers {
+		if strings.EqualFold(handlerFunc.pattern, req.RequestURI) {
+			handlerFunc.handlerFunc(resp, req)
+		}
+	}
 }
 
 // registers the HandlerFunc to the DefaultMux and sorts them after inserting
 func HandleFunc(path string, handlerFunc HandlerFunc) {
-	DefaultMux.insertHandler(path, handlerFunc)
+	DefaultMux.handleFunc(path, handlerFunc)
+}
+
+func (mux *Mux) handleFunc(path string, handlerFunc HandlerFunc) {
+	mux.insertHandler(path, handlerFunc)
 }
 
 // sorts handlers by length
-func (*Mux) insertHandler(path string, handlerFunc HandlerFunc) {
+func (m *Mux) insertHandler(path string, handlerFunc HandlerFunc) {
 	handlerFP := handlerFuncPattern{handlerFunc: handlerFunc, pattern: path}
-	DefaultMux.handlers = append(DefaultMux.handlers, handlerFP)
+	m.handlers = append(m.handlers, handlerFP)
 
-	sort.Slice(DefaultMux.handlers, func(i, j int) bool {
-		return len(DefaultMux.handlers[i].pattern) < len(DefaultMux.handlers[j].pattern)
+	sort.Slice(m.handlers, func(i, j int) bool {
+		return len(m.handlers[i].pattern) > len(m.handlers[j].pattern)
 	})
 }

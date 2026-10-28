@@ -14,12 +14,11 @@ import (
 	"log"
 	"math/big"
 	"net"
-	"net/http"
 	"strings"
 	"time"
 )
 
-func ListenAndServe(addr string, handler http.Handler) error {
+func ListenAndServe(addr string, handler Handler) error {
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("listen: %w", err)
@@ -27,7 +26,7 @@ func ListenAndServe(addr string, handler http.Handler) error {
 	defer listener.Close()
 
 	if handler == nil {
-		handler = http.DefaultServeMux
+		handler = DefaultMux
 	}
 
 	for {
@@ -45,7 +44,7 @@ func ListenAndServe(addr string, handler http.Handler) error {
 	}
 }
 
-func HandleConnection(conn net.Conn, mux http.Handler) error {
+func HandleConnection(conn net.Conn, mux Handler) error {
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
 	for {
@@ -83,7 +82,7 @@ func HandleConnection(conn net.Conn, mux http.Handler) error {
 	}
 }
 
-func ListenAndServeTLS(addr string, handler http.Handler) error {
+func ListenAndServeTLS(addr string, handler Handler) error {
 	cert, err := generateDummyCert()
 	if err != nil {
 		return fmt.Errorf("create cert: %w", err)
@@ -101,7 +100,7 @@ func ListenAndServeTLS(addr string, handler http.Handler) error {
 	defer tlsListener.Close()
 
 	if handler == nil {
-		handler = http.DefaultServeMux
+		handler = DefaultMux
 	}
 
 	for {
