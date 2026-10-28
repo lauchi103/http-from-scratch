@@ -5,18 +5,16 @@ import (
 	"httpServer/internal/http1"
 	"io"
 	"net/http"
-
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const addr = ":8080"
 
 func main() {
-	metricsHandler := promhttp.Handler()
+	/*metricsHandler := promhttp.Handler()
 
 	http1.HandleFunc("/metrics", func(w http1.ResponseWriter, r *http.Request) {
 		metricsHandler.ServeHTTP(w, r)
-	})
+	})*/
 
 	http1.HandleFunc("/hello", func(w http1.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "hello")

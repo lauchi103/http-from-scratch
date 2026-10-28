@@ -7,10 +7,14 @@ import (
 )
 
 type Handler interface {
-	ServeHTTP(resp *Response, req *http.Request)
+	ServeHTTP(ResponseWriter, *http.Request)
 }
 
 type HandlerFunc func(w ResponseWriter, req *http.Request)
+
+func (h HandlerFunc) ServeHTTP(w ResponseWriter, req *http.Request) {
+	h(w, req)
+}
 
 type handlerFuncPattern struct {
 	handlerFunc HandlerFunc
@@ -28,10 +32,10 @@ func NewMux() *Mux {
 }
 
 // matches the router from req to ist handlers and then executes the fitting handlerFunc
-func (mux *Mux) ServeHTTP(resp *Response, req *http.Request) {
+func (mux *Mux) ServeHTTP(r ResponseWriter, req *http.Request) {
 	for _, handlerFunc := range mux.handlers {
 		if strings.EqualFold(handlerFunc.pattern, req.RequestURI) {
-			handlerFunc.handlerFunc(resp, req)
+			handlerFunc.handlerFunc(r, req)
 		}
 	}
 }

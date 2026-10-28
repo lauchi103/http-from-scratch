@@ -257,7 +257,7 @@ const testTimeout = 2 * time.Second
 // returns a handle for the other end. The HandleConnection error is captured
 // in errCh (a panic is converted into an error so the suite fails cleanly
 // while the server is still unimplemented).
-func newServerTest(t *testing.T, mux http.Handler) *serverTest {
+func newServerTest(t *testing.T, mux Handler) *serverTest {
 	t.Helper()
 	client, server := newMemPipe()
 	errCh := make(chan error, 1)
@@ -393,8 +393,8 @@ func (st *serverTest) closeClient() {
 // newTestHandler returns an http.Handler whose responses are derived from the
 // parsed request, so asserting on the response also asserts that the server
 // parsed the request correctly.
-func newTestHandler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func newTestHandler() Handler {
+	return HandlerFunc(func(w ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/hello":
 			_, _ = w.Write([]byte("hello"))
