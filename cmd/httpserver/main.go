@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"httpServer/internal/http1"
 	"io"
-	"log"
 	"net/http"
 )
 
@@ -25,14 +24,14 @@ func main() {
 	http.HandleFunc("GET /users", handleGetUsers(store))
 
 	//tls
-	if err := http1.ListenAndServeTLS(":8443", nil); err != nil {
+	/*if err := http1.ListenAndServeTLS(":8443", nil); err != nil {
 		log.Fatalf("Server-Abbruch: %v", err)
-	}
+	}*/
 
 	//tcp
-	/*
-		if err := http1.ListenAndServe(addr, nil); err != nil {
-			panic(err)
-		}
-	*/
+
+	if err := http1.ListenAndServe(addr, nil); err != nil {
+		panic(err)
+	}
+
 }

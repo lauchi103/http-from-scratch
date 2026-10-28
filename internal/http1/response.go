@@ -14,9 +14,11 @@ type Response struct {
 	statusCode    int
 	headerWritten bool
 	conn          net.Conn
-	bw            *bufio.Writer
+	bw            ResponseWriter
 	body          bytes.Buffer
 }
+
+type ResponseWriter = *bufio.Writer
 
 func NewResponse(conn net.Conn) *Response {
 	return &Response{conn: conn, bw: bufio.NewWriter(conn), header: make(http.Header)}
