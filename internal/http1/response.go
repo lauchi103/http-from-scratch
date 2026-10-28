@@ -15,6 +15,8 @@ type ResponseWriter interface {
 	WriteHeader(statusCode int)
 }
 
+var _ http.ResponseWriter = (*Response)(nil)
+
 type Response struct {
 	header        http.Header
 	statusCode    int
