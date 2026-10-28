@@ -15,6 +15,7 @@ type ResponseWriter interface {
 	WriteHeader(statusCode int)
 }
 
+// check if convertable
 var _ http.ResponseWriter = (*Response)(nil)
 
 type Response struct {
