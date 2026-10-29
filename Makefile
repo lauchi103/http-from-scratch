@@ -8,7 +8,8 @@ SVC_PORT       ?= 8080
 PID_FILE       ?= .port-forward.pid
 VM_PORT        ?= 8428
 MON_NAMESPACE  ?= monitoring
-GRAFANA_PORT   ?= 3000
+GRAF_HOST   ?= 3000
+GRAF_SVC	?= 80
 
 .PHONY: all build deploy reload port-forward stop-forward
 
@@ -40,12 +41,12 @@ port-forward: stop-forward
 	@echo "Starte Port-Forwards..."
 	@kubectl port-forward -n $(NAMESPACE) svc/httpserver-svc $(LOCAL_PORT):$(SVC_PORT) > /dev/null 2>&1 & echo $$! >> $(PID_FILE)
 	@kubectl port-forward -n $(MON_NAMESPACE) svc/vmsingle-vm-stack-victoria-metrics-k8s-stack $(VM_PORT):$(VM_PORT) > /dev/null 2>&1 & echo $$! >> $(PID_FILE)
-	@kubectl port-forward -n $(MON_NAMESPACE) svc/vm-stack-grafana $(GRAFANA_PORT):$(GRAFANA_PORT) > /dev/null 2>&1 & echo $$! >> $(PID_FILE)
+	@kubectl port-forward -n $(MON_NAMESPACE) svc/vm-stack-grafana $(GRAF_HOST):$(GRAF_SVC) > /dev/null 2>&1 & echo $$! >> $(PID_FILE)
 	@sleep 1
 	@echo "Bereit!"
 	@echo "👉 Service: http://localhost:$(LOCAL_PORT)"
 	@echo "👉 VMUI:    http://localhost:$(VM_PORT)/vmui"
-	@echo "👉 Grafana: http://localhost:$(GRAFANA_PORT)"
+	@echo "👉 Grafana: http://localhost:$(GRAF_HOST)"
 
 ## stop-forward: Beendet laufende Hintergrundprozesse sauber
 stop-forward:
