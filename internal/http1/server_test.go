@@ -394,7 +394,7 @@ func (st *serverTest) closeClient() {
 // parsed request, so asserting on the response also asserts that the server
 // parsed the request correctly.
 func newTestHandler() Handler {
-	return HandlerFunc(func(w ResponseWriter, r *http.Request) {
+	return HandlerFuncType(func(w ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/hello":
 			_, _ = w.Write([]byte("hello"))

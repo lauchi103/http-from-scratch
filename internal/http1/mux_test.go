@@ -48,7 +48,7 @@ func TestMuxMethods(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, in := range tc.input {
-				tc.mux.handleFunc(in.pattern, in.handlerFunc)
+				tc.mux.HandleFunc(in.pattern, in.handlerFunc)
 			}
 
 			// 1. Tatsächliche Patterns aus dem Mux extrahieren

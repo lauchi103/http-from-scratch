@@ -10,14 +10,14 @@ type Handler interface {
 	ServeHTTP(ResponseWriter, *http.Request)
 }
 
-type HandlerFunc func(w ResponseWriter, req *http.Request)
+type HandlerFuncType func(w ResponseWriter, req *http.Request)
 
-func (h HandlerFunc) ServeHTTP(w ResponseWriter, req *http.Request) {
+func (h HandlerFuncType) ServeHTTP(w ResponseWriter, req *http.Request) {
 	h(w, req)
 }
 
 type handlerFuncPattern struct {
-	handlerFunc HandlerFunc
+	handlerFunc HandlerFuncType
 	pattern     string
 }
 
@@ -40,17 +40,17 @@ func (mux *Mux) ServeHTTP(r ResponseWriter, req *http.Request) {
 	}
 }
 
-// registers the HandlerFunc to the DefaultMux and sorts them after inserting
-func HandleFunc(path string, handlerFunc HandlerFunc) {
-	DefaultMux.handleFunc(path, handlerFunc)
+// registers the HandlerFuncType to the DefaultMux and sorts them after inserting
+func HandleFunc(path string, handlerFunc HandlerFuncType) {
+	DefaultMux.HandleFunc(path, handlerFunc)
 }
 
-func (mux *Mux) handleFunc(path string, handlerFunc HandlerFunc) {
+func (mux *Mux) HandleFunc(path string, handlerFunc HandlerFuncType) {
 	mux.insertHandler(path, handlerFunc)
 }
 
 // sorts handlers by length
-func (m *Mux) insertHandler(path string, handlerFunc HandlerFunc) {
+func (m *Mux) insertHandler(path string, handlerFunc HandlerFuncType) {
 	handlerFP := handlerFuncPattern{handlerFunc: handlerFunc, pattern: path}
 	m.handlers = append(m.handlers, handlerFP)
 

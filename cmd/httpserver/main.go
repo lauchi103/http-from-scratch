@@ -3,16 +3,15 @@ package main
 import (
 	"fmt"
 	"httpServer/internal/http1"
+	"httpServer/internal/mymetrics"
 	"io"
 	"net/http"
-
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const addr = ":8080"
 
 func main() {
-	metricsHandler := promhttp.Handler()
+	metricsHandler := mymetrics.Handler()
 
 	http1.HandleFunc("/metrics", func(w http1.ResponseWriter, r *http.Request) {
 		metricsHandler.ServeHTTP(w, r)
