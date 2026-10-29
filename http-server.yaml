@@ -1,26 +1,56 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: $title$
+  name: httpserver
   labels:
-    app: $title$
+    app: httpserver
 spec:
-  replicas: $1$
+  replicas: 1
   selector:
     matchLabels:
-      app: $title$
+      app: httpserver
   template:
     metadata:
-      name: $title$
+      name: httpserver
       labels:
-        app: $title$
+        app: httpserver
     spec:
       containers:
-        - name: $title$
-          image: $nginx$
+        - name: httpserver
+          image: mein-httpserver:latest
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: $80$
-              protocol: $TCP$
+          - name: http-metrics
+            containerPort: 8080
+            protocol: TCP
       restartPolicy: Always
-      $END$
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpserver-svc
+  namespace: default
+  labels:
+    app: httpserver
+spec:
+  type: ClusterIP
+  selector:
+    app: httpserver
+  ports:
+    - name: http-metrics
+      port: 8080
+      targetPort: http-metrics
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: httpserver-scrape
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: httpserver
+  endpoints:
+  - port: http-metrics
+    path: /metrics
+    interval: 5s
