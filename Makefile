@@ -7,6 +7,8 @@ KIND_CLUSTER  ?= kind
 LOCAL_PORT    ?= 8080
 SVC_PORT      ?= 8080
 PID_FILE      ?= .port-forward.pid
+VM_PORT       ?= 8428
+MON_NAMESPACE ?= monitoring
 
 all: build deploy
 
@@ -17,13 +19,17 @@ deploy:
 	kubectl apply -f $(MANIFEST) -n $(NAMESPACE)
 port-forward: stop-forward
 	@echo "Starte Port-Forward auf localhost: $(LOCAL_PORT)..."
-	@kubectl port-forward -n $(NAMESPACE) svc/httpserver-svc $(LOCAL_PORT):$(SVC_PORT) > /dev/null 2>&1 & echo $$! > $(PID_FILE)
+	@kubectl port-forward -n $(NAMESPACE) svc/httpserver-svc $(LOCAL_PORT):$(SVC_PORT) > /dev/null 2>&1 & echo $$! >> $(PID_FILE)
+	@kubectl port-forward -n $(MON_NAMESPACE) svc/vmsingle-vm-stack-victoria-metrics-k8s-stack $(VM_PORT):$(VM_PORT) > /dev/null 2>&1 & echo $$! >> $(PID_FILE)
 	@sleep 1
 	@echo "Bereit! Service erreichbar unter http://localhost:$(LOCAL_PORT)"
+	@echo "Bereit! VMUI erreichbar unter http://localhost:$(VM_PORT)/vmui"
 
 stop-forward:
 	@if [ -f $(PID_FILE) ]; then \
-		kill -9 $$(cat $(PID_FILE)) > /dev/null 2>&1 || true; \
+		echo "Beende bestehende Port-Forwards..."; \
+		while read -r pid; do \
+			kill -9 $$pid > /dev/null 2>&1 || true; \
+		done < $(PID_FILE); \
 		rm -f $(PID_FILE); \
-		echo "Port-Forward beendet."; \
 	fi
