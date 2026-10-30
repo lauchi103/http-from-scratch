@@ -43,3 +43,6 @@ Content-Length: 235
 
 Until this point, it is fine to use the http.DefaultServeMux.
 
+## Grafana setup
+
+add data connection jaeger with url http://vts-vt-single-server:10428/select/jaeger

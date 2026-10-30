@@ -17,8 +17,11 @@ spec:
     spec:
       containers:
         - name: httpserver
-          image: mein-httpserver:latest
+          image: mein-httpserver
           imagePullPolicy: Always
+          env:
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: "vts-vt-single-server.monitoring.svc.cluster.local:10428"
           ports:
           - name: http-metrics
             containerPort: 8080
