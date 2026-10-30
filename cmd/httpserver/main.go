@@ -7,12 +7,15 @@ import (
 	"httpServer/internal/mymetrics"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
@@ -65,6 +68,7 @@ func main() {
 	}()
 
 	otel.SetTracerProvider(tp)
+	otel.SetTextMapPropagator(propagation.TraceContext{})
 	tracer = tp.Tracer("httpserver")
 
 	metricsHandler := mymetrics.Handler()
@@ -74,7 +78,8 @@ func main() {
 	})
 
 	http1.HandleFunc("/hello", func(w http1.ResponseWriter, r *http.Request) {
-		_, span := tracer.Start(r.Context(), "HTTP GET /hello")
+		// 1. Parent-Span starten
+		ctx, span := tracer.Start(r.Context(), "HTTP GET /hello")
 		defer span.End()
 
 		span.SetAttributes(
@@ -82,7 +87,54 @@ func main() {
 			attribute.String("http.route", "/hello"),
 		)
 
-		fmt.Fprintf(w, "hello")
+		// 2. Request an /dice mit Trace-Kontext erstellen
+		diceReq, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://127.0.0.1:8080/dice", nil)
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to create request for dice")
+			span.SetAttributes(semconv.HTTPResponseStatusCode(http.StatusInternalServerError))
+			w.WriteHeader(http.StatusInternalServerError)
+			io.WriteString(w, "internal server error\n")
+			return
+		}
+
+		// 3. Trace-Kontext in die HTTP-Header injizieren (W3C traceparent)
+		otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(diceReq.Header))
+
+		// 4. /dice aufrufen
+		client := &http.Client{}
+		resp, err := client.Do(diceReq)
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to call dice service")
+			span.SetAttributes(semconv.HTTPResponseStatusCode(http.StatusInternalServerError))
+			w.WriteHeader(http.StatusInternalServerError)
+			io.WriteString(w, fmt.Sprintf("failed to reach dice: %v\n", err))
+			return
+		}
+		defer resp.Body.Close()
+
+		// 5. Prüfen, ob /dice einen 500er geworfen hat
+		if resp.StatusCode == http.StatusInternalServerError {
+			diceBody, _ := io.ReadAll(resp.Body)
+			errMsg := fmt.Sprintf("dice downstream error 500: %s", string(diceBody))
+
+			// Span als Fehler kennzeichnen (roter Balken in Grafana)
+			span.SetStatus(codes.Error, errMsg)
+			span.SetAttributes(semconv.HTTPResponseStatusCode(http.StatusInternalServerError))
+
+			w.WriteHeader(http.StatusInternalServerError)
+			io.WriteString(w, fmt.Sprintf("hello failed because dice failed: %s", string(diceBody)))
+			return
+		}
+
+		// 6. Erfolgsfall (200 OK)
+		diceBody, _ := io.ReadAll(resp.Body)
+		span.SetStatus(codes.Ok, "success")
+		span.SetAttributes(semconv.HTTPResponseStatusCode(http.StatusOK))
+
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "hello -> dice response: %s", string(diceBody))
 	})
 	http1.HandleFunc("/echo", func(w http1.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
@@ -93,6 +145,33 @@ func main() {
 			io.WriteString(w, fmt.Sprintf("failed to copy body: %d", http.StatusInternalServerError))
 		}
 
+	})
+	http1.HandleFunc("/dice", func(w http1.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		extractedCtx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
+
+		_, span := tracer.Start(extractedCtx, "HTTP GET /dice")
+		defer span.End()
+
+		span.SetAttributes(
+			attribute.String("http.method", r.Method),
+			attribute.String("http.route", "/dice"),
+		)
+
+		if rand.Intn(5) == 0 {
+			span.SetStatus(codes.Error, "error in /dice")
+			span.SetAttributes(semconv.HTTPResponseStatusCode(http.StatusInternalServerError))
+			w.WriteHeader(500)
+			io.WriteString(w, fmt.Sprintf("dice rolled: %d", http.StatusInternalServerError))
+			return
+		}
+
+		span.SetAttributes(semconv.HTTPResponseStatusCode(http.StatusOK))
+		span.SetStatus(codes.Ok, "success")
+
+		w.WriteHeader(http.StatusOK)
+		io.WriteString(w, fmt.Sprintf("dice rolled: %d\n", http.StatusOK))
 	})
 	//store := NewUserStorage()
 	//http.HandleFunc("GET /users", handleGetUsers(store))
